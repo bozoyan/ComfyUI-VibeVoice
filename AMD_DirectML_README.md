@@ -78,6 +78,29 @@ pip install torch-directml
 - 检查其他程序是否占用显卡
 - 尝试不同的 attention_type 设置
 
+#### 4. Unicode 编码错误 (重要！)
+如果遇到 `'utf-8' codec can't decode byte` 错误：
+
+**快速解决方案:**
+```bash
+cd /path/to/ComfyUI/custom_nodes/VibeVoice-ComfyUI
+python fix_directml_unicode.py
+```
+
+**手动解决方案:**
+1. 重启 ComfyUI
+2. 确保输入文本为纯ASCII或UTF-8编码
+3. 尝试使用CPU模式作为临时后备
+4. 在DirectML节点中使用 `attention_type: eager`
+
+**环境变量设置:**
+在启动ComfyUI前设置以下环境变量:
+```bash
+set PYTHONIOENCODING=utf-8
+set LANG=en_US.UTF-8
+set TORCH_DIRECTML_DEBUG=0
+```
+
 ### 日志信息含义
 - `Using DirectML device` - 使用 DirectML 加速
 - `Model moved to DirectML device` - 模型已加载到 AMD 显卡

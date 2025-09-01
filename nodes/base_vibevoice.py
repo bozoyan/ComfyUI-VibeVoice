@@ -9,6 +9,12 @@ import numpy as np
 import re
 from typing import List, Optional, Tuple, Any
 
+# Import DirectML utilities
+try:
+    from .directml_utils import DirectMLUtils
+except ImportError:
+    DirectMLUtils = None
+
 # Setup logging
 logger = logging.getLogger("VibeVoice")
 
@@ -20,8 +26,16 @@ def detect_directml_device():
         if torch_directml.is_available():
             device_count = torch_directml.device_count()
             if device_count > 0:
+                device = torch_directml.device()
                 logger.info(f"DirectML detected with {device_count} device(s)")
-                return torch_directml.device(), True
+                logger.info(f"DirectML device: {device}")
+                
+                # 应用DirectML兼容性设置
+                if DirectMLUtils:
+                    DirectMLUtils.ensure_directml_compatibility()
+                    logger.info(DirectMLUtils.get_directml_info())
+                
+                return device, True
     except ImportError:
         logger.info("torch-directml not available")
     except Exception as e:
@@ -163,18 +177,21 @@ class BaseVibeVoiceNode:
                 model_kwargs = {
                     "cache_dir": comfyui_models_dir,
                     "trust_remote_code": True,
-                    "torch_dtype": torch.bfloat16,
+                    "torch_dtype": torch.float16,
                 }
                 
                 # Set device mapping based on available hardware
                 if self.is_directml:
                     # For DirectML, don't use device_map, we'll move manually
-                    logger.info("Loading model for DirectML device")
+                    # Also avoid certain torch_dtype issues with DirectML
+                    model_kwargs["torch_dtype"] = torch.float32  # DirectML works better with float32
+                    logger.info("Loading model for DirectML device with float32")
                 elif torch.cuda.is_available():
                     model_kwargs["device_map"] = "cuda"
                     logger.info("Loading model for CUDA device")
                 else:
                     model_kwargs["device_map"] = "cpu"
+                    model_kwargs["torch_dtype"] = torch.float32  # CPU also better with float32
                     logger.info("Loading model for CPU device")
                 
                 # Set attention implementation based on user selection
@@ -278,14 +295,22 @@ class BaseVibeVoiceNode:
                 
                 # Move to appropriate device
                 if self.is_directml:
-                    # For DirectML, move model to DirectML device
+                    # For DirectML, use specialized preparation
                     try:
-                        self.model = self.model.to(self.device)
+                        if DirectMLUtils:
+                            self.model = DirectMLUtils.prepare_directml_model(self.model, self.device)
+                        else:
+                            # Fallback method
+                            if hasattr(self.model, 'half'):
+                                self.model = self.model.float()  # Use float32 for DirectML
+                            self.model = self.model.to(self.device)
                         logger.info(f"Model moved to DirectML device: {self.device}")
                     except Exception as e:
                         logger.warning(f"Failed to move model to DirectML, using CPU: {e}")
                         self.device = torch.device("cpu")
                         self.is_directml = False
+                        if hasattr(self.model, 'float'):
+                            self.model = self.model.float()
                         self.model = self.model.to(self.device)
                 elif torch.cuda.is_available():
                     self.model = self.model.cuda()
@@ -448,9 +473,22 @@ class BaseVibeVoiceNode:
                 return_attention_mask=True
             )
             
-            # Move to device
+            # Move to device with DirectML-specific handling
             device = self.device  # Use the detected device
-            inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+            if self.is_directml:
+                # For DirectML, ensure all tensors are float32 and handle encoding carefully
+                processed_inputs = {}
+                for k, v in inputs.items():
+                    if isinstance(v, torch.Tensor):
+                        # Ensure proper dtype for DirectML
+                        if v.dtype == torch.float16:
+                            v = v.float()  # Convert to float32
+                        processed_inputs[k] = v.to(device)
+                    else:
+                        processed_inputs[k] = v
+                inputs = processed_inputs
+            else:
+                inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
             
             # Estimate tokens for user information (not used as limit)
             text_length = len(formatted_text.split())
@@ -463,26 +501,77 @@ class BaseVibeVoiceNode:
             
             # Generate with official parameters
             with torch.no_grad():
-                if use_sampling:
-                    # Use sampling mode (less stable but more varied)
-                    output = self.model.generate(
-                        **inputs,
-                        tokenizer=self.processor.tokenizer,
-                        cfg_scale=cfg_scale,
-                        max_new_tokens=None,
-                        do_sample=True,
-                        temperature=temperature,
-                        top_p=top_p,
-                    )
-                else:
-                    # Use deterministic mode like official examples
-                    output = self.model.generate(
-                        **inputs,
-                        tokenizer=self.processor.tokenizer,
-                        cfg_scale=cfg_scale,
-                        max_new_tokens=None,
-                        do_sample=False,  # More deterministic generation
-                    )
+                try:
+                    if use_sampling:
+                        # Use sampling mode (less stable but more varied)
+                        output = self.model.generate(
+                            **inputs,
+                            tokenizer=self.processor.tokenizer,
+                            cfg_scale=cfg_scale,
+                            max_new_tokens=None,
+                            do_sample=True,
+                            temperature=temperature,
+                            top_p=top_p,
+                        )
+                    else:
+                        # Use deterministic mode like official examples
+                        output = self.model.generate(
+                            **inputs,
+                            tokenizer=self.processor.tokenizer,
+                            cfg_scale=cfg_scale,
+                            max_new_tokens=None,
+                            do_sample=False,  # More deterministic generation
+                        )
+                except UnicodeDecodeError as unicode_error:
+                    logger.error(f"Unicode decoding error during generation: {unicode_error}")
+                    if self.is_directml:
+                        logger.info("DirectML Unicode error detected, trying fallback to CPU")
+                        # Fallback to CPU for this generation
+                        original_device = self.device
+                        original_is_directml = self.is_directml
+                        
+                        try:
+                            # Move model to CPU temporarily
+                            self.device = torch.device("cpu")
+                            self.is_directml = False
+                            self.model = self.model.cpu().float()
+                            
+                            # Move inputs to CPU
+                            cpu_inputs = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+                            
+                            # Retry generation on CPU
+                            if use_sampling:
+                                output = self.model.generate(
+                                    **cpu_inputs,
+                                    tokenizer=self.processor.tokenizer,
+                                    cfg_scale=cfg_scale,
+                                    max_new_tokens=None,
+                                    do_sample=True,
+                                    temperature=temperature,
+                                    top_p=top_p,
+                                )
+                            else:
+                                output = self.model.generate(
+                                    **cpu_inputs,
+                                    tokenizer=self.processor.tokenizer,
+                                    cfg_scale=cfg_scale,
+                                    max_new_tokens=None,
+                                    do_sample=False,
+                                )
+                            
+                            logger.info("Successfully generated on CPU fallback")
+                            
+                        except Exception as cpu_error:
+                            logger.error(f"CPU fallback also failed: {cpu_error}")
+                            # Restore original device settings
+                            self.device = original_device
+                            self.is_directml = original_is_directml
+                            raise unicode_error
+                    else:
+                        raise unicode_error
+                except Exception as gen_error:
+                    logger.error(f"Generation failed: {gen_error}")
+                    raise gen_error
                 
                 # Check if we got actual audio output
                 if hasattr(output, 'speech_outputs') and output.speech_outputs:
@@ -493,11 +582,20 @@ class BaseVibeVoiceNode:
                     else:
                         audio_tensor = speech_tensors
                     
-                    # Ensure proper format (1, 1, samples)
+                    # Ensure proper format (1, 1, samples) and handle DirectML tensors
                     if audio_tensor.dim() == 1:
                         audio_tensor = audio_tensor.unsqueeze(0).unsqueeze(0)
                     elif audio_tensor.dim() == 2:
                         audio_tensor = audio_tensor.unsqueeze(0)
+                    
+                    # For DirectML, ensure tensor is moved to CPU before returning
+                    if self.is_directml:
+                        try:
+                            audio_tensor = audio_tensor.cpu().float()
+                        except Exception as cpu_move_error:
+                            logger.warning(f"Failed to move DirectML tensor to CPU: {cpu_move_error}")
+                            # Try alternative approach
+                            audio_tensor = audio_tensor.detach().cpu().float()
                     
                     return {
                         "waveform": audio_tensor.cpu(),
