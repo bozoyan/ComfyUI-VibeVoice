@@ -19,7 +19,7 @@ except ImportError:
 logger = logging.getLogger("VibeVoice")
 
 def detect_directml_device():
-    """Detect if DirectML is available and return appropriate device"""
+    """Detect available device and return appropriate device with device type"""
     try:
         # Check if torch-directml is available
         import torch_directml
@@ -35,20 +35,25 @@ def detect_directml_device():
                     DirectMLUtils.ensure_directml_compatibility()
                     logger.info(DirectMLUtils.get_directml_info())
                 
-                return device, True
+                return device, "directml"
     except ImportError:
         logger.info("torch-directml not available")
     except Exception as e:
         logger.warning(f"DirectML detection failed: {e}")
     
+    # Check for MPS (Metal Performance Shaders) - macOS M1/M2 chips
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        logger.info("MPS (Metal Performance Shaders) detected - macOS M chip GPU acceleration")
+        return torch.device("mps"), "mps"
+    
     # Fallback to CUDA if available
     if torch.cuda.is_available():
         logger.info("Using CUDA device")
-        return torch.device("cuda"), False
+        return torch.device("cuda"), "cuda"
     
     # Fallback to CPU
     logger.info("Using CPU device")
-    return torch.device("cpu"), False
+    return torch.device("cpu"), "cpu"
 
 class BaseVibeVoiceNode:
     """Base class for VibeVoice nodes containing common functionality"""
@@ -58,9 +63,11 @@ class BaseVibeVoiceNode:
         self.processor = None
         self.current_model_path = None
         self.current_attention_type = None
-        # Detect DirectML device
-        self.device, self.is_directml = detect_directml_device()
-        logger.info(f"Initialized with device: {self.device}, DirectML: {self.is_directml}")
+        # Detect available device
+        self.device, self.device_type = detect_directml_device()
+        self.is_directml = (self.device_type == "directml")
+        self.is_mps = (self.device_type == "mps")
+        logger.info(f"Initialized with device: {self.device}, type: {self.device_type}")
     
     def free_memory(self):
         """Free model and processor from memory"""
@@ -85,6 +92,15 @@ class BaseVibeVoiceNode:
                     import torch_directml
                     # DirectML doesn't have explicit cache clearing, but force GC
                     torch_directml.empty_cache() if hasattr(torch_directml, 'empty_cache') else None
+                except:
+                    pass
+            elif self.is_mps:
+                # Clear MPS cache
+                try:
+                    if hasattr(torch.backends.mps, 'empty_cache'):
+                        torch.backends.mps.empty_cache()
+                    elif hasattr(torch.mps, 'empty_cache'):
+                        torch.mps.empty_cache()
                 except:
                     pass
             elif torch.cuda.is_available():
@@ -183,16 +199,22 @@ class BaseVibeVoiceNode:
                 # Set device mapping based on available hardware
                 if self.is_directml:
                     # For DirectML, don't use device_map, we'll move manually
-                    # Also avoid certain torch_dtype issues with DirectML
-                    model_kwargs["torch_dtype"] = torch.float32  # DirectML works better with float32
+                    # DirectML works better with float32
+                    model_kwargs["torch_dtype"] = torch.float32
                     logger.info("Loading model for DirectML device with float32")
+                elif self.is_mps:
+                    # For MPS, don't use device_map, we'll move manually
+                    # MPS supports float16 for better performance
+                    model_kwargs["torch_dtype"] = torch.float16
+                    logger.info("Loading model for MPS device with float16")
                 elif torch.cuda.is_available():
                     model_kwargs["device_map"] = "cuda"
-                    logger.info("Loading model for CUDA device")
+                    model_kwargs["torch_dtype"] = torch.float16
+                    logger.info("Loading model for CUDA device with float16")
                 else:
                     model_kwargs["device_map"] = "cpu"
-                    model_kwargs["torch_dtype"] = torch.float32  # CPU also better with float32
-                    logger.info("Loading model for CPU device")
+                    model_kwargs["torch_dtype"] = torch.float16  # CPU can handle float16 too
+                    logger.info("Loading model for CPU device with float16")
                 
                 # Set attention implementation based on user selection
                 if attention_type != "auto":
@@ -308,9 +330,27 @@ class BaseVibeVoiceNode:
                     except Exception as e:
                         logger.warning(f"Failed to move model to DirectML, using CPU: {e}")
                         self.device = torch.device("cpu")
+                        self.device_type = "cpu"
                         self.is_directml = False
                         if hasattr(self.model, 'float'):
                             self.model = self.model.float()
+                        self.model = self.model.to(self.device)
+                elif self.is_mps:
+                    # For MPS, move model with proper dtype handling
+                    try:
+                        # Ensure model is in float16 for MPS performance
+                        if hasattr(self.model, 'half'):
+                            self.model = self.model.half()
+                        self.model = self.model.to(self.device)
+                        logger.info(f"Model moved to MPS device: {self.device}")
+                    except Exception as e:
+                        logger.warning(f"Failed to move model to MPS, using CPU: {e}")
+                        self.device = torch.device("cpu")
+                        self.device_type = "cpu"
+                        self.is_mps = False
+                        # Convert to float16 for CPU efficiency
+                        if hasattr(self.model, 'half'):
+                            self.model = self.model.half()
                         self.model = self.model.to(self.device)
                 elif torch.cuda.is_available():
                     self.model = self.model.cuda()
@@ -454,6 +494,9 @@ class BaseVibeVoiceNode:
                     torch_directml.manual_seed(seed)
                 except:
                     pass
+            elif self.is_mps:
+                # MPS uses the same random seed as CPU/CUDA
+                pass
             elif torch.cuda.is_available():
                 torch.cuda.manual_seed(seed)
                 torch.cuda.manual_seed_all(seed)  # For multi-GPU
@@ -473,7 +516,7 @@ class BaseVibeVoiceNode:
                 return_attention_mask=True
             )
             
-            # Move to device with DirectML-specific handling
+            # Move to device with device-specific handling
             device = self.device  # Use the detected device
             if self.is_directml:
                 # For DirectML, ensure all tensors are float32 and handle encoding carefully
@@ -483,6 +526,18 @@ class BaseVibeVoiceNode:
                         # Ensure proper dtype for DirectML
                         if v.dtype == torch.float16:
                             v = v.float()  # Convert to float32
+                        processed_inputs[k] = v.to(device)
+                    else:
+                        processed_inputs[k] = v
+                inputs = processed_inputs
+            elif self.is_mps:
+                # For MPS, ensure all tensors are float16 for optimal performance
+                processed_inputs = {}
+                for k, v in inputs.items():
+                    if isinstance(v, torch.Tensor):
+                        # Ensure proper dtype for MPS
+                        if v.dtype == torch.float32:
+                            v = v.half()  # Convert to float16 for MPS efficiency
                         processed_inputs[k] = v.to(device)
                     else:
                         processed_inputs[k] = v
@@ -588,12 +643,19 @@ class BaseVibeVoiceNode:
                     elif audio_tensor.dim() == 2:
                         audio_tensor = audio_tensor.unsqueeze(0)
                     
-                    # For DirectML, ensure tensor is moved to CPU before returning
+                    # For DirectML and MPS, ensure tensor is moved to CPU before returning
                     if self.is_directml:
                         try:
                             audio_tensor = audio_tensor.cpu().float()
                         except Exception as cpu_move_error:
                             logger.warning(f"Failed to move DirectML tensor to CPU: {cpu_move_error}")
+                            # Try alternative approach
+                            audio_tensor = audio_tensor.detach().cpu().float()
+                    elif self.is_mps:
+                        try:
+                            audio_tensor = audio_tensor.cpu().float()
+                        except Exception as cpu_move_error:
+                            logger.warning(f"Failed to move MPS tensor to CPU: {cpu_move_error}")
                             # Try alternative approach
                             audio_tensor = audio_tensor.detach().cpu().float()
                     

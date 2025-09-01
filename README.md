@@ -181,6 +181,14 @@ python_embeded/python.exe -m pip install git+https://github.com/microsoft/VibeVo
 
 ## 系统要求
 
+### 设备支持
+- **NVIDIA GPU**: 使用 CUDA 11.8+ 获得最佳性能（支持 float16）
+- **macOS M1/M2 芯片**: 自动使用 MPS（Metal Performance Shaders）加速（支持 float16）
+- **AMD GPU**: 使用 DirectML 支持（使用 float32）
+- **CPU**: 所有平台的回退选项（使用 float16）
+
+插件会自动检测最佳可用设备并相应调整数据类型以获得最佳性能。
+
 ### 硬件
 - **最低要求**: VibeVoice-1.5B 需要 8GB 显存
 - **推荐配置**: VibeVoice-7B 需要 16GB+ 显存
@@ -189,10 +197,16 @@ python_embeded/python.exe -m pip install git+https://github.com/microsoft/VibeVo
 ### 软件
 - Python 3.8+
 - PyTorch 2.0+
-- CUDA 11.8+（用于 GPU 加速）
+- CUDA 11.8+（用于 NVIDIA GPU 加速）
+- MPS（用于 macOS M1/M2 芯片 GPU 加速）
+- DirectML（用于 AMD GPU 支持）
 - ComfyUI（最新版本）
 
 ## 故障排除
+
+### 设备特定支持
+- **AMD GPU 用户**: 请参阅 [AMD_DirectML_README.md](AMD_DirectML_README.md) 了解 DirectML 支持详情
+- **macOS M1/M2 用户**: 请参阅 [macOS_MPS_README.md](macOS_MPS_README.md) 了解 MPS 支持详情
 
 ### 安装问题
 - 确保您使用的是 ComfyUI 的 Python 环境
