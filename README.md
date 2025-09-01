@@ -35,7 +35,7 @@
 1. 将此仓库克隆到您的 ComfyUI 自定义节点文件夹：
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/Enemyx-net/VibeVoice-ComfyUI
+git clone https://github.com/bozoyan/ComfyUI-VibeVoice
 ```
 
 2. 重启 ComfyUI - 节点将在首次使用时自动安装 VibeVoice

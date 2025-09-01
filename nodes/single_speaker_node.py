@@ -58,8 +58,8 @@ class VibeVoiceSingleSpeakerNode(BaseVibeVoiceNode):
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
     FUNCTION = "generate_speech"
-    CATEGORY = "VibeVoiceWrapper"
-    DESCRIPTION = "Generate speech from text using Microsoft VibeVoice with optional voice cloning"
+    CATEGORY = "🇨🇳BOZO/VibeVoice"
+    DESCRIPTION = "使用 Microsoft VibeVoice 从文本生成语音，并具有可选的语音克隆"
 
     def _prepare_voice_samples(self, speakers: list, voice_to_clone) -> List[np.ndarray]:
         """Prepare voice samples from input audio or create synthetic ones"""

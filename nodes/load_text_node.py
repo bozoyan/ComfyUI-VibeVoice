@@ -60,8 +60,8 @@ class LoadTextFromFileNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "load_text"
-    CATEGORY = "VibeVoiceWrapper"
-    DESCRIPTION = "Load text content from a .txt file"
+    CATEGORY = "🇨🇳BOZO/VibeVoice"
+    DESCRIPTION = "从.txt文件加载文本内容"
 
     def load_text(self, file: str):
         """Load text content from file"""

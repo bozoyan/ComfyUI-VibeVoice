@@ -53,13 +53,13 @@ def check_directml_support():
             logger.info(f"DirectML detected with {device_count} AMD GPU device(s)")
             return True
         else:
-            logger.info("DirectML available but no compatible AMD GPU detected")
+            logger.info("DirectML 可用，但未检测到兼容的 AMD GPU")
             return False
     except ImportError:
-        logger.info("DirectML not installed. For AMD GPU acceleration, install torch-directml")
+        logger.info("未安装 DirectML。对于 AMD GPU 加速，请安装 torch-directml")
         return False
     except Exception as e:
-        logger.warning(f"DirectML check failed: {e}")
+        logger.warning(f"DirectML 检查失败: {e}")
         return False
 
 def check_vibevoice_available():
@@ -80,14 +80,14 @@ def install_vibevoice():
         
     try:
         # Install VibeVoice with specific transformers version to avoid LossKwargs issue
-        logger.info("Installing VibeVoice with compatible dependencies...")
+        logger.info("安装具有兼容依赖项的 VibeVoice...")
         
         # First install compatible transformers version
         transformers_cmd = [sys.executable, "-m", "pip", "install", "transformers>=4.44.0"]
         result = subprocess.run(transformers_cmd, capture_output=True, text=True, timeout=300)
         
         if result.returncode != 0:
-            logger.warning(f"Transformers install warning: {result.stderr}")
+            logger.warning(f"Transformers 安装警告: {result.stderr}")
         
         # Then install VibeVoice
         cmd = [sys.executable, "-m", "pip", "install", "git+https://github.com/microsoft/VibeVoice.git"]
@@ -95,14 +95,14 @@ def install_vibevoice():
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         
         if result.returncode == 0:
-            logger.info("VibeVoice installation completed")
+            logger.info("VibeVoice 安装完成")
             return check_vibevoice_available()  # Verify installation
         else:
-            logger.error(f"Installation failed: {result.stderr}")
+            logger.error(f"安装失败: {result.stderr}")
             return False
             
     except Exception as e:
-        logger.error(f"Installation error: {e}")
+        logger.error(f"安装错误: {e}")
         return False
 
 # Initialize node mappings
@@ -113,16 +113,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 try:
     from .nodes.load_text_node import LoadTextFromFileNode
     NODE_CLASS_MAPPINGS["LoadTextFromFileNode"] = LoadTextFromFileNode
-    NODE_DISPLAY_NAME_MAPPINGS["LoadTextFromFileNode"] = "VibeVoice Load Text From File"
+    NODE_DISPLAY_NAME_MAPPINGS["LoadTextFromFileNode"] = "VibeVoice Load Text From File 🎯BOZO "
 except Exception as e:
-    logger.error(f"Failed to register LoadTextFromFile node: {e}")
+    logger.error(f"无法注册 LoadTextFromFile 节点: {e}")
 
 # Register VibeVoice nodes (requires VibeVoice installation)
 if install_vibevoice():
     # Check for DirectML support
     directml_available = check_directml_support()
     if directml_available:
-        logger.info("AMD GPU acceleration with DirectML is ready")
+        logger.info("AMD GPU 使用 DirectML 加速已准备就绪")
     
     try:
         from .nodes.single_speaker_node import VibeVoiceSingleSpeakerNode
@@ -131,20 +131,20 @@ if install_vibevoice():
         
         # Single speaker node
         NODE_CLASS_MAPPINGS["VibeVoiceSingleSpeakerNode"] = VibeVoiceSingleSpeakerNode
-        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceSingleSpeakerNode"] = "VibeVoice Single Speaker"
+        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceSingleSpeakerNode"] = "VibeVoice Single Speaker 🎯BOZO "
         
         # Multi speaker node
         NODE_CLASS_MAPPINGS["VibeVoiceMultipleSpeakersNode"] = VibeVoiceMultipleSpeakersNode
-        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceMultipleSpeakersNode"] = "VibeVoice Multiple Speakers"
+        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceMultipleSpeakersNode"] = "VibeVoice Multiple Speakers 🎯BOZO "
         
         # Free memory node
         NODE_CLASS_MAPPINGS["VibeVoiceFreeMemoryNode"] = VibeVoiceFreeMemoryNode
-        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceFreeMemoryNode"] = "VibeVoice Free Memory"
+        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceFreeMemoryNode"] = "VibeVoice Free Memory 🎯BOZO  "
         
     except Exception as e:
         logger.error(f"Failed to register VibeVoice nodes: {e}")
-        logger.info("VibeVoice may need a ComfyUI restart to complete installation")
+        logger.info("VibeVoice 可能需要重新启动 ComfyUI 才能完成安装")
 else:
-    logger.warning("VibeVoice nodes unavailable - installation failed")
+    logger.warning("VibeVoice nodes 不可用 - 安装失败")
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', '__version__']

@@ -61,8 +61,8 @@ class VibeVoiceMultipleSpeakersNode(BaseVibeVoiceNode):
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
     FUNCTION = "generate_speech"
-    CATEGORY = "VibeVoiceWrapper"
-    DESCRIPTION = "Generate multi-speaker conversations with up to 4 distinct voices using Microsoft VibeVoice"
+    CATEGORY = "🇨🇳BOZO/VibeVoice"
+    DESCRIPTION = "使用 Microsoft VibeVoice 生成具有多达 4 种不同声音的多说话人对话"
 
     def _prepare_voice_sample(self, voice_audio, speaker_idx: int) -> Optional[np.ndarray]:
         """Prepare a single voice sample from input audio"""

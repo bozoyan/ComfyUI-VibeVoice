@@ -27,7 +27,7 @@ class VibeVoiceFreeMemoryNode:
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
     FUNCTION = "free_vibevoice_memory"
-    CATEGORY = "VibeVoiceWrapper"
+    CATEGORY = "🇨🇳BOZO/VibeVoice"
     DESCRIPTION = "Free all loaded VibeVoice models from memory when audio passes through"
     
     @classmethod
