@@ -1,0 +1,18 @@
+[project]
+name = "VibeVoice-ComfyUI"
+version = "1.0.4"
+description = "ComfyUI wrapper for Microsoft VibeVoice TTS model. Supports single speaker, multi-speaker, and text file loading"
+license = {file = "LICENSE"} 
+authors = [{name = "Fabio Sarracino"}]
+dependencies = ["torch>=2.0.0", "torchaudio>=2.0.0", "numpy>=1.20.0", "transformers>=4.51.3", "librosa>=0.9.0", "soundfile>=0.12.0", "av>=14.3.0", "git+https://github.com/microsoft/VibeVoice.git"]
+
+[project.urls]
+Repository = "https://github.com/Enemyx-net/VibeVoice-ComfyUI"
+"Bug Tracker" = "https://github.com/Enemyx-net/VibeVoice-ComfyUI/issues"
+
+[tool.comfy]
+PublisherId = "enemyx"
+DisplayName = "VibeVoice ComfyUI"
+Icon = ""
+includes = [] 
+
