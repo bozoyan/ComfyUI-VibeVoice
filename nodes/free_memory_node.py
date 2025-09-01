@@ -28,7 +28,7 @@ class VibeVoiceFreeMemoryNode:
     RETURN_NAMES = ("audio",)
     FUNCTION = "free_vibevoice_memory"
     CATEGORY = "🇨🇳BOZO/VibeVoice"
-    DESCRIPTION = "Free all loaded VibeVoice models from memory when audio passes through"
+    DESCRIPTION = "当音频通过时，从内存中释放所有加载的 VibeVoice 模型"
     
     @classmethod
     def register_single_speaker(cls, node_instance):
@@ -116,7 +116,7 @@ class VibeVoiceFreeMemoryNode:
             return (audio,)
                 
         except Exception as e:
-            logger.error(f"Error freeing VibeVoice memory: {str(e)}")
+            logger.error(f"释放 VibeVoice 内存时出错: {str(e)}")
             # Still pass through audio even if error occurs
             return (audio,)
     

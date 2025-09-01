@@ -142,7 +142,7 @@ if install_vibevoice():
         NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceFreeMemoryNode"] = "VibeVoice 释放内存 🎯BOZO  "
         
     except Exception as e:
-        logger.error(f"Failed to register VibeVoice nodes: {e}")
+        logger.error(f"无法注册 VibeVoice 节点: {e}")
         logger.info("VibeVoice 可能需要重新启动 ComfyUI 才能完成安装")
 else:
     logger.warning("VibeVoice nodes 不可用 - 安装失败")
