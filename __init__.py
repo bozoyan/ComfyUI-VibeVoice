@@ -113,7 +113,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 try:
     from .nodes.load_text_node import LoadTextFromFileNode
     NODE_CLASS_MAPPINGS["LoadTextFromFileNode"] = LoadTextFromFileNode
-    NODE_DISPLAY_NAME_MAPPINGS["LoadTextFromFileNode"] = "VibeVoice Load Text From File 🎯BOZO "
+    NODE_DISPLAY_NAME_MAPPINGS["LoadTextFromFileNode"] = "VibeVoice 从文件加载文本 🎯BOZO "
 except Exception as e:
     logger.error(f"无法注册 LoadTextFromFile 节点: {e}")
 
@@ -131,15 +131,15 @@ if install_vibevoice():
         
         # Single speaker node
         NODE_CLASS_MAPPINGS["VibeVoiceSingleSpeakerNode"] = VibeVoiceSingleSpeakerNode
-        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceSingleSpeakerNode"] = "VibeVoice Single Speaker 🎯BOZO "
+        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceSingleSpeakerNode"] = "VibeVoice 单扬声器 🎯BOZO "
         
         # Multi speaker node
         NODE_CLASS_MAPPINGS["VibeVoiceMultipleSpeakersNode"] = VibeVoiceMultipleSpeakersNode
-        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceMultipleSpeakersNode"] = "VibeVoice Multiple Speakers 🎯BOZO "
+        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceMultipleSpeakersNode"] = "VibeVoice 多扬声器 🎯BOZO "
         
         # Free memory node
         NODE_CLASS_MAPPINGS["VibeVoiceFreeMemoryNode"] = VibeVoiceFreeMemoryNode
-        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceFreeMemoryNode"] = "VibeVoice Free Memory 🎯BOZO  "
+        NODE_DISPLAY_NAME_MAPPINGS["VibeVoiceFreeMemoryNode"] = "VibeVoice 释放内存 🎯BOZO  "
         
     except Exception as e:
         logger.error(f"Failed to register VibeVoice nodes: {e}")
